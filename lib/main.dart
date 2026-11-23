@@ -36,7 +36,6 @@ void main() async {
 
   Auth.escutarAlteracoes();
 
-  Tarefa.escutarAlteracoes(); //escutar qualquer alteração
   Tarefa.updateTarefas(); //popular a lista inicial
 
   runApp(MyApp());

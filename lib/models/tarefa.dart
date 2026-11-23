@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_f/models/usuario.dart';
+import 'package:flutter_f/services/auth.dart';
 import 'package:flutter_f/services/db.dart';
 import 'package:flutter_f/telas/tarefa_details.dart';
 import 'package:flutter_f/themes/app_themes.dart';
@@ -50,16 +53,20 @@ class Tarefa {
   }
 
   void save() async {
+    if (auth.currentUser == null) return;
+    Usuario? usuario = await Auth.getUsuario(auth.currentUser!);
+    if (usuario == null) return;
+
     if (id == null) { //criar nova entrada no banco de dados
       status = "pendente";
-      DatabaseReference ref = database.ref('tasks').push();
+      DatabaseReference ref = database.ref('tasks/${usuario.uid}').push();
       try {
         await ref.set(toMap());
       } catch (error) {
         print(error);
       }
     } else {
-      DatabaseReference ref = database.ref('tasks/$id');
+      DatabaseReference ref = database.ref('tasks/${usuario.uid}/$id');
       try {
         await ref.set(toMap());
       } catch (error) {
@@ -69,9 +76,13 @@ class Tarefa {
   }
 
   void remove() async {
+    if (auth.currentUser == null) return;
+    Usuario? usuario = await Auth.getUsuario(auth.currentUser!);
+    if (usuario == null) return;
+
     if (id == null) return; //não dá pra remover uma tarefa que nem está no banco.
 
-    DatabaseReference ref = database.ref('tasks/$id');
+    DatabaseReference ref = database.ref('tasks/${usuario.uid}/$id');
     try {
       await ref.set(null); //morre
     } catch (error) {
@@ -101,20 +112,28 @@ class Tarefa {
   }
 
   static Future<Tarefa?> read(String id) async {
-    DatabaseReference ref = database.ref('tasks/$id');
+    if (auth.currentUser == null) return null;
+    Usuario? usuario = await Auth.getUsuario(auth.currentUser!);
+    if (usuario == null) return null;
+
+    DatabaseReference ref = database.ref('tasks/${usuario.uid}/$id');
     DatabaseEvent event = await ref.once();
     if (event.snapshot.exists) {
       Map map = event.snapshot.value as Map;
       map["id"] = event.snapshot.key ?? "";
       return Tarefa.fromMap(map);
     } else {
-      print("nenhum dado encontrado em 'tasks/$id'");
+      print("nenhum dado encontrado em 'tasks/${usuario.uid}/$id'");
       return null;
     }
   }
 
   static Future<List<Tarefa>?> listTarefas() async {
-    DatabaseReference ref = database.ref('tasks');
+    if (auth.currentUser == null) return [];
+    Usuario? usuario = await Auth.getUsuario(auth.currentUser!);
+    if (usuario == null) return [];
+
+    DatabaseReference ref = database.ref('tasks/${usuario.uid}');
     DatabaseEvent event = await ref.once();
     List<Tarefa> tasks = [];
     if (event.snapshot.value != null) {
@@ -143,17 +162,30 @@ class Tarefa {
     });
   }
 
-  static void escutarAlteracoes() {
+  static StreamSubscription<DatabaseEvent>? onAddedSubscription;
+  static StreamSubscription<DatabaseEvent>? onRemovedSubscription;
+  static StreamSubscription<DatabaseEvent>? onChangedSubscription;
+
+  static void escutarAlteracoes(User user) async { //escutar de um user especifico
+    Usuario? usuario = await Auth.getUsuario(user);
+    if (usuario == null) return;
+
     DatabaseReference ref = database.ref("tasks");
-    ref.onChildAdded.listen((_) {
+    onAddedSubscription = ref.onChildAdded.listen((_) {
       updateTarefas();
     });
-    ref.onChildRemoved.listen((_) {
+    onRemovedSubscription = ref.onChildRemoved.listen((_) {
       //quando uma tarefa for removida, interprete "null" como uma tabela vazia em vez de ignorar
       updateTarefas(allowEmpty: true);
     });
-    ref.onChildChanged.listen((_) {
+    onChangedSubscription = ref.onChildChanged.listen((_) {
       updateTarefas();
     });
+  }
+
+  static void pararDeEscutar() {
+    onAddedSubscription?.cancel();
+    onRemovedSubscription?.cancel();
+    onChangedSubscription?.cancel();
   }
 }

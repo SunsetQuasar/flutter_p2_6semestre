@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter_f/models/tarefa.dart';
 import 'package:flutter_f/models/usuario.dart';
 import 'package:flutter_f/services/db.dart';
 
@@ -38,7 +39,15 @@ sealed class Auth {
 
   static void escutarAlteracoes() {
     auth.authStateChanges().listen((u) {
-      if (u != null) getUsuario(u);
+      if (u != null) {
+        getUsuario(u);
+        //atualiza as tarefas e começa a escutar a do novo usuário
+        Tarefa.updateTarefas();
+        Tarefa.escutarAlteracoes(u);
+      } else {
+        Tarefa.updateTarefas();
+        Tarefa.pararDeEscutar();
+      }
     });
   }
 
@@ -64,28 +73,29 @@ sealed class Auth {
     String password,
     String nome,
   ) async {
-    try {
-      UserCredential userCredential = await auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      print('Usuário criado: ${userCredential.user?.uid}');
 
-      if (userCredential.user?.uid != null) {
-        Usuario novo = Usuario(
-          uid: userCredential.user!.uid,
+      try {
+        UserCredential userCredential = await auth.createUserWithEmailAndPassword(
           email: email,
-          nome: nome,
+          password: password,
         );
-        novo.write();
-        usuario = novo;
-      }
 
-      return AuthResult(uid: userCredential.user?.uid, error: null);
-    } on FirebaseAuthException catch (e) {
-      print('Erro ao criar: ${e.message}');
-      return AuthResult(uid: null, error: e.message);
-    }
+        print('Usuário criado: ${userCredential.user?.uid}');
+        if (userCredential.user?.uid != null) {
+          Usuario novo = Usuario(
+            uid: userCredential.user!.uid,
+            email: email,
+            nome: nome,
+          );
+          novo.write();
+          usuario = novo;
+          return AuthResult(uid: userCredential.user?.uid, error: null);
+        }
+      } on FirebaseAuthException catch (e) {
+        print('Erro ao criar: ${e.code}');
+        return AuthResult(uid: null, error: e.message);
+      } 
+    return AuthResult(uid: null, error: "desconhecido");
   }
 
   // Logout

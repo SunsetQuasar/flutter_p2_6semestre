@@ -65,143 +65,155 @@ class _TarefaDetailsState extends State<TarefaDetails> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      //TextField precisa estar sob um Material (acho que o pop-up é separado do MaterialApp raiz?)
-      child: Theme(
-        data: AppThemes.currentThemeData,
-        child: DefaultTextStyle(
-          style: AppThemes.currentThemeData.textTheme.bodyMedium!,
-          child: Center(
-            child: Dialog(
-              backgroundColor: AppThemes.colorScheme.surfaceContainer,
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: .min,
-                  children: [
-                    Text(
-                      "Detalhes da tarefa:",
-                      style: TextStyle(color: AppThemes.textoContraste(0.5)),
-                    ),
-                    SizedBox(height: 10),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: 640),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          mainAxisSize: .min,
-                          children: [
-                            TextFormField(
-                              controller: _tituloController,
-                              decoration: InputDecoration(labelText: 'Título'),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Campo "Título" vazio';
-                                }
-                                return null;
-                              },
-                            ),
-                            SizedBox(height: 20),
-                            ConstrainedBox( // tentar não dar overflow quando a descrição for muito longa
-                              constraints: BoxConstraints(maxHeight: 180),
-                              child: SingleChildScrollView(
-                                child: TextFormField(
-                                  keyboardType: TextInputType.multiline,
-                                  maxLines: null,
-                                  controller: _descricaoController,
+    return ValueListenableBuilder(
+      valueListenable: AppThemes.currentTheme,
+      builder: (context, value, child) {
+        return Material(
+          //TextField precisa estar sob um Material (acho que o pop-up é separado do MaterialApp raiz?)
+          child: Theme(
+            data: AppThemes.currentThemeData,
+            child: DefaultTextStyle(
+              style: AppThemes.currentThemeData.textTheme.bodyMedium!,
+              child: Center(
+                child: Dialog(
+                  backgroundColor: AppThemes.colorScheme.surfaceContainer,
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: .min,
+                      children: [
+                        Text(
+                          "Detalhes da tarefa:",
+                          style: TextStyle(
+                            color: AppThemes.textoContraste(0.5),
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: 640),
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              mainAxisSize: .min,
+                              children: [
+                                TextFormField(
+                                  controller: _tituloController,
                                   decoration: InputDecoration(
-                                    labelText: 'Descrição',
+                                    labelText: 'Título',
                                   ),
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
-                                      return 'Campo "Descrição" vazio';
+                                      return 'Campo "Título" vazio';
                                     }
                                     return null;
                                   },
                                 ),
-                              ),
+                                SizedBox(height: 20),
+                                ConstrainedBox(
+                                  // tentar não dar overflow quando a descrição for muito longa
+                                  constraints: BoxConstraints(maxHeight: 180),
+                                  child: SingleChildScrollView(
+                                    child: TextFormField(
+                                      keyboardType: TextInputType.multiline,
+                                      maxLines: null,
+                                      controller: _descricaoController,
+                                      decoration: InputDecoration(
+                                        labelText: 'Descrição',
+                                      ),
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Campo "Descrição" vazio';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 30),
+                                DropdownMenu<String>(
+                                  label: Text("Prioridade"),
+                                  initialSelection: _prioridade,
+                                  dropdownMenuEntries: prioridadeEntries,
+                                  onSelected: (value) {
+                                    _changePrioridade(value ?? "baixa");
+                                  },
+                                ),
+                                SizedBox(height: 20),
+                                ElevatedButton(
+                                  style: ButtonStyle(
+                                    //botão um pouquinho mais quadrado (prioridades)
+                                    shape:
+                                        WidgetStateProperty.resolveWith<
+                                          OutlinedBorder?
+                                        >((Set<WidgetState> states) {
+                                          return RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadiusGeometry.all(
+                                                  Radius.circular(16),
+                                                ),
+                                          );
+                                        }),
+                                  ),
+                                  onPressed: () async {
+                                    DateTime? datahora = await abrirDataEHora(
+                                      context,
+                                    );
+                                    if (datahora != null && context.mounted) {
+                                      _changePrazo(datahora);
+                                    }
+                                  },
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: 30,
+                                      horizontal: 20,
+                                    ),
+                                    child: Text(
+                                      "Prazo: ${Tarefa.getPrazoText(_prazo)}",
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(height: 30),
-                            DropdownMenu<String>(
-                              label: Text("Prioridade"),
-                              initialSelection: "baixa",
-                              dropdownMenuEntries: prioridadeEntries,
-                              onSelected: (value) {
-                                _changePrioridade(value ?? "baixa");
-                              },
-                            ),
-                            SizedBox(height: 20),
+                          ),
+                        ),
+                        SizedBox(height: 20),
+                        Row(
+                          mainAxisSize: .min,
+                          mainAxisAlignment: .spaceEvenly,
+                          children: [
                             ElevatedButton(
-                              style: ButtonStyle(
-                                //botão um pouquinho mais quadrado (prioridades)
-                                shape:
-                                    WidgetStateProperty.resolveWith<
-                                      OutlinedBorder?
-                                    >((Set<WidgetState> states) {
-                                      return RoundedRectangleBorder(
-                                        borderRadius: BorderRadiusGeometry.all(
-                                          Radius.circular(16),
-                                        ),
-                                      );
-                                    }),
-                              ),
-                              onPressed: () async {
-                                DateTime? datahora = await abrirDataEHora(
-                                  context,
-                                );
-                                if (datahora != null && context.mounted) {
-                                  _changePrazo(datahora);
+                              onPressed: () {
+                                Navigator.pop(context, widget._tarefa);
+                              },
+                              child: Text("Voltar"),
+                            ),
+                            SizedBox(width: 128),
+                            ElevatedButton(
+                              onPressed: () {
+                                if (_formKey.currentState!.validate()) {
+                                  widget._tarefa.titulo =
+                                      _tituloController.text;
+                                  widget._tarefa.descricao =
+                                      _descricaoController.text;
+                                  widget._tarefa.prioridade = _prioridade;
+                                  widget._tarefa.dataVencimento = _prazo;
+                                  widget._tarefa.save();
+                                  Navigator.pop(context, widget._tarefa);
                                 }
                               },
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  vertical: 30,
-                                  horizontal: 20,
-                                ),
-                                child: Text(
-                                  "Prazo: ${Tarefa.getPrazoText(_prazo)}",
-                                ),
-                              ),
+                              child: Text("Salvar"),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    Row(
-                      mainAxisSize: .min,
-                      mainAxisAlignment: .spaceEvenly,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context, widget._tarefa);
-                          },
-                          child: Text("Voltar"),
-                        ),
-                        SizedBox(width: 128),
-                        ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              widget._tarefa.titulo = _tituloController.text;
-                              widget._tarefa.descricao =
-                                  _descricaoController.text;
-                              widget._tarefa.prioridade = _prioridade;
-                              widget._tarefa.dataVencimento = _prazo;
-                              widget._tarefa.save();
-                              Navigator.pop(context, widget._tarefa);
-                            }
-                          },
-                          child: Text("Salvar"),
-                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
